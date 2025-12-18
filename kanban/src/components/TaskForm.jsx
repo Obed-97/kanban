@@ -55,14 +55,18 @@ export default function TaskForm({ onSubmit, initialData = null, onCancel }) {
                   Titre <span className="text-danger">*</span>
                 </label>
                 <Field
-                  id="title"
-                  name="title"
-                  type="text"
-                  placeholder="Entrez le titre de la tâche"
-                  className={`form-control ${
-                    errors.title && touched.title ? 'is-invalid' : ''
-                  }`}
-                />
+                    id="title"
+                    name="title"
+                    type="text"
+                    placeholder="Entrez le titre de la tâche"
+                    className={`form-control ${
+                      touched.title 
+                        ? errors.title 
+                          ? 'is-invalid' 
+                          : 'is-valid' 
+                        : ''
+                    }`}
+                  />
                 <ErrorMessage name="title">
                   {msg => <div className="invalid-feedback">{msg}</div>}
                 </ErrorMessage>
@@ -80,7 +84,11 @@ export default function TaskForm({ onSubmit, initialData = null, onCancel }) {
                   placeholder="Ajoutez une description (optionnel)"
                   rows="3"
                   className={`form-control ${
-                    errors.description && touched.description ? 'is-invalid' : ''
+                    touched.description 
+                      ? errors.description 
+                        ? 'is-invalid' 
+                        : 'is-valid' 
+                      : ''
                   }`}
                 />
                 <ErrorMessage name="description">
@@ -106,11 +114,12 @@ export default function TaskForm({ onSubmit, initialData = null, onCancel }) {
               </div>
 
               {/* Boutons avec btn-sm */}
-              <div className="d-flex gap-2 pt-3 border-top">
+             <div className="d-flex gap-2 pt-3 border-top">
                 <button
                   type="submit"
-                  disabled={!isValid && dirty}
+                  disabled={initialData ? !isValid : (!isValid || !dirty)}
                   className="btn btn-outline-secondary btn-sm"
+                  title={!isValid || !dirty ? 'Veuillez remplir le formulaire correctement' : ''}
                 >
                   <i className={`bi ${initialData ? 'bi-check-lg' : 'bi-plus-lg'} me-1`}></i>
                   {initialData ? 'Enregistrer' : 'Ajouter'}

@@ -3,7 +3,29 @@ import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import KanbanBoard from './components/KanbanBoard';
 import TaskForm from './components/TaskForm';
 import TaskDetail from './components/TaskDetail';
+import SearchFilter from './components/SearchFilter';
 import * as taskService from './services/taskService';
+import logoUrl from './assets/kanban_logo.svg';
+
+
+const isSameId = (id1, id2) => {
+  return String(id1) === String(id2);
+};
+
+
+const filterTasks = (tasks, searchTerm, statusFilter) => {
+  return tasks.filter(task => {
+    
+    const matchesSearch = !searchTerm || 
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    
+    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+};
 
 // Composant principal App
 export default function App() {
@@ -11,6 +33,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [draggedTask, setDraggedTask] = useState(null);
   const [isDraggingOver, setIsDraggingOver] = useState(null);
+  
+  // États pour la recherche et le filtrage
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     loadTasks();
@@ -20,10 +46,11 @@ export default function App() {
     try {
       setLoading(true);
       const data = await taskService.getTasks();
+      console.log('📋 Tâches chargées:', data);
       setTasks(data);
-      return data; // Retourner les données
+      return data;
     } catch (error) {
-      console.error('Erreur chargement:', error);
+      console.error('❌ Erreur chargement:', error);
       alert('Erreur lors du chargement. Vérifiez que json-server est démarré.');
       return [];
     } finally {
@@ -33,47 +60,43 @@ export default function App() {
 
   const handleCreateTask = async (taskData) => {
     try {
+      console.log('➕ Création tâche:', taskData);
       await taskService.createTask(taskData);
       await loadTasks();
     } catch (error) {
-      console.error('Erreur création:', error);
+      console.error('❌ Erreur création:', error);
       throw error;
     }
   };
 
   const handleUpdateTask = async (taskId, taskData) => {
     try {
-      console.log('Mise à jour de la tâche ID:', taskId);
+      console.log('✏️ Mise à jour tâche ID:', taskId, taskData);
       
-      // Récupérer directement la tâche depuis l'API
+      // Récupérer la tâche actuelle
       const currentTask = await taskService.getTaskById(taskId);
       
       if (!currentTask) {
         throw new Error('Tâche introuvable sur le serveur');
       }
 
-      console.log('Tâche trouvée:', currentTask);
-
       // Créer l'objet complet à envoyer
       const updatedTaskData = {
-        id: taskId,
+        id: currentTask.id,
         title: taskData.title,
         description: taskData.description,
         status: taskData.status,
         createdAt: currentTask.createdAt
       };
 
-      console.log('Envoi de la mise à jour:', updatedTaskData);
-
       // Mettre à jour sur le serveur
       await taskService.updateTask(taskId, updatedTaskData);
       
-      console.log('Mise à jour réussie');
-
       // Recharger toutes les tâches
       await loadTasks();
     } catch (error) {
-      console.error('Erreur mise à jour:', error);
+      console.error('❌ Erreur mise à jour:', error);
+      alert('Erreur lors de la mise à jour : ' + error.message);
       throw error;
     }
   };
@@ -84,14 +107,14 @@ export default function App() {
     }
 
     try {
-      console.log('Suppression de la tâche ID:', taskId);
+      console.log('🗑️ Suppression tâche ID:', taskId);
       await taskService.deleteTask(taskId);
-      console.log('Suppression réussie');
       
       // Recharger toutes les tâches
       await loadTasks();
     } catch (error) {
-      console.error('Erreur suppression:', error);
+      console.error('❌ Erreur suppression:', error);
+      alert('Erreur lors de la suppression : ' + error.message);
       throw error;
     }
   };
@@ -122,14 +145,16 @@ export default function App() {
         status: newStatus 
       };
       
-      // Mise à jour optimiste
-      setTasks(tasks.map(task => task.id === draggedTask.id ? updatedTask : task));
+      // Mise à jour optimiste (utiliser isSameId pour la comparaison)
+      setTasks(tasks.map(task => 
+        isSameId(task.id, draggedTask.id) ? updatedTask : task
+      ));
       
       try {
         await taskService.updateTask(draggedTask.id, updatedTask);
-        console.log('Drag & drop réussi');
+        console.log('✅ Drag & drop réussi');
       } catch (error) {
-        console.error('Erreur drag & drop:', error);
+        console.error('❌ Erreur drag & drop:', error);
         alert('Erreur lors du déplacement de la tâche');
         await loadTasks();
       }
@@ -155,10 +180,7 @@ export default function App() {
     <div className="container py-5">
       <header className="mb-5">
         <div className="text-center mb-4">
-          <h1 className="mb-2">
-            <i className="bi bi-kanban me-2"></i>
-            Kanban Board
-          </h1>
+            <img src={logoUrl} alt="Logo" width={300} />
           <p className="text-muted">Gérez vos tâches efficacement</p>
         </div>
       </header>
@@ -169,7 +191,11 @@ export default function App() {
             path="/" 
             element={
               <HomePage 
-                tasks={tasks} 
+                tasks={tasks}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
                 onDelete={handleDeleteTask} 
                 onDragStart={handleDragStart} 
                 onDragOver={handleDragOver} 
@@ -197,27 +223,66 @@ export default function App() {
 }
 
 // Page d'accueil
-function HomePage({ tasks, onDelete, onDragStart, onDragOver, onDrop, isDraggingOver }) {
+function HomePage({ 
+  tasks, 
+  searchTerm, 
+  onSearchChange, 
+  statusFilter, 
+  onStatusFilterChange,
+  onDelete, 
+  onDragStart, 
+  onDragOver, 
+  onDrop, 
+  isDraggingOver 
+}) {
   const navigate = useNavigate();
+
+  // Filtrer les tâches selon la recherche et le statut
+  const filteredTasks = filterTasks(tasks, searchTerm, statusFilter);
 
   const handleDelete = async (taskId) => {
     try {
       await onDelete(taskId);
     } catch (error) {
-      alert('Erreur lors de la suppression');
+      console.error('❌ Erreur HomePage.handleDelete:', error);
     }
   };
 
   return (
     <div>
-      <div className="text-center mb-4">
-        <button onClick={() => navigate('/new')} className="btn btn-primary-action">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <button onClick={() => navigate('/new')} className="btn btn-primary btn-create-task">
           <i className="bi bi-plus-circle me-2"></i>
           Nouvelle tâche
         </button>
+        
+        <div className="text-muted">
+          <i className="bi bi-kanban me-2"></i>
+          <strong>{tasks.length}</strong> tâche{tasks.length > 1 ? 's' : ''} au total
+        </div>
       </div>
+
+      {/* Composant de recherche et filtrage */}
+      <SearchFilter
+        searchTerm={searchTerm}
+        onSearchChange={onSearchChange}
+        statusFilter={statusFilter}
+        onStatusFilterChange={onStatusFilterChange}
+        taskCount={filteredTasks.length}
+      />
+
+      {/* Message si aucune tâche du tout - SUPPRIMÉ, on affiche toujours les colonnes */}
+
+      {/* Tableau Kanban - Toujours afficher, même sans tâches */}
       <KanbanBoard 
-        tasks={tasks}
+        tasks={filteredTasks}
+        allTasks={tasks}
+        searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        onResetFilters={() => {
+          onSearchChange('');
+          onStatusFilterChange('all');
+        }}
         onEdit={(task) => navigate(`/edit/${task.id}`)}
         onDelete={handleDelete}
         onDragStart={onDragStart}
@@ -238,7 +303,7 @@ function NewPage({ onCreateTask }) {
       await onCreateTask(taskData);
       navigate('/');
     } catch (error) {
-      alert('Erreur lors de la création');
+      console.error('❌ Erreur NewPage.handleSubmit:', error);
     }
   };
 
@@ -257,7 +322,7 @@ function NewPage({ onCreateTask }) {
   );
 }
 
-// Page édition - SIMPLIFIÉE
+// Page édition
 function EditPage({ onUpdateTask }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -267,10 +332,12 @@ function EditPage({ onUpdateTask }) {
   useEffect(() => {
     const fetchTask = async () => {
       try {
-        const data = await taskService.getTaskById(Number(id));
+        console.log('📥 Chargement tâche pour édition, ID:', id);
+        const data = await taskService.getTaskById(id);
         setTask(data);
       } catch (error) {
-        console.error('Erreur chargement tâche:', error);
+        console.error('❌ Erreur chargement tâche pour édition:', error);
+        alert('Tâche non trouvée : ' + error.message);
       } finally {
         setLoading(false);
       }
@@ -280,11 +347,10 @@ function EditPage({ onUpdateTask }) {
 
   const handleSubmit = async (taskData) => {
     try {
-      await onUpdateTask(Number(id), taskData);
+      await onUpdateTask(id, taskData);
       navigate('/');
     } catch (error) {
-      console.error('Erreur dans EditPage:', error);
-      alert('Erreur lors de la mise à jour');
+      console.error('❌ Erreur EditPage.handleSubmit:', error);
     }
   };
 
@@ -329,15 +395,24 @@ function EditPage({ onUpdateTask }) {
 function DetailPage({ tasks, onDelete }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const task = tasks.find(t => t.id === Number(id));
+  
+  console.log('🔍 Recherche tâche ID:', id, 'dans', tasks.length, 'tâches');
+  
+  // Utiliser isSameId pour la comparaison flexible
+  const task = tasks.find(t => isSameId(t.id, id));
+
+  if (!task) {
+    console.log('❌ Tâche non trouvée. IDs disponibles:', tasks.map(t => t.id));
+  } else {
+    console.log('✅ Tâche trouvée:', task);
+  }
 
   const handleDelete = async () => {
     try {
-      await onDelete(Number(id));
+      await onDelete(id);
       navigate('/');
     } catch (error) {
-      console.error('Erreur dans DetailPage:', error);
-      alert('Erreur lors de la suppression');
+      console.error('❌ Erreur DetailPage.handleDelete:', error);
     }
   };
 
@@ -346,6 +421,7 @@ function DetailPage({ tasks, onDelete }) {
       <div className="text-center py-5">
         <i className="bi bi-exclamation-triangle display-1 text-warning"></i>
         <h2 className="mt-3">Tâche non trouvée</h2>
+        <p className="text-muted">ID recherché : {id}</p>
         <button onClick={() => navigate('/')} className="btn btn-primary-action mt-3">
           Retour au tableau
         </button>

@@ -7,7 +7,12 @@ export const getTasks = async () => {
     if (!response.ok) {
       throw new Error('Erreur lors de la récupération des tâches');
     }
-    return await response.json();
+    const tasks = await response.json();
+    
+    return tasks.map(task => ({
+      ...task,
+      id: typeof task.id === 'string' ? parseInt(task.id, 10) || task.id : task.id
+    }));
   } catch (error) {
     console.error('Erreur getTasks:', error);
     throw error;
@@ -21,32 +26,50 @@ export const getTaskById = async (id) => {
     if (!response.ok) {
       throw new Error('Tâche non trouvée');
     }
-    return await response.json();
+    const task = await response.json();
+    
+    return {
+      ...task,
+      id: typeof task.id === 'string' ? parseInt(task.id, 10) || task.id : task.id
+    };
   } catch (error) {
     console.error('Erreur getTaskById:', error);
     throw error;
   }
 };
 
-// Créer une nouvelle tâche (json-server génère l'ID automatiquement)
+
 export const createTask = async (taskData) => {
   try {
-    // NE PAS INCLURE L'ID - json-server le générera automatiquement
+    
+    const allTasks = await fetch(API_URL).then(res => res.json());
+    
+    
+    const maxId = allTasks.reduce((max, task) => {
+      const numId = typeof task.id === 'number' ? task.id : parseInt(task.id, 10);
+      return !isNaN(numId) && numId > max ? numId : max;
+    }, 0);
+    
+    const newId = maxId + 1;
+    
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        id: newId, 
         title: taskData.title,
         description: taskData.description,
         status: taskData.status,
         createdAt: new Date().toISOString()
       }),
     });
+    
     if (!response.ok) {
       throw new Error('Erreur lors de la création de la tâche');
     }
+    
     return await response.json();
   } catch (error) {
     console.error('Erreur createTask:', error);
@@ -62,11 +85,16 @@ export const updateTask = async (id, taskData) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(taskData),
+      body: JSON.stringify({
+        ...taskData,
+        id: id 
+      }),
     });
+    
     if (!response.ok) {
       throw new Error('Erreur lors de la mise à jour de la tâche');
     }
+    
     return await response.json();
   } catch (error) {
     console.error('Erreur updateTask:', error);
@@ -80,9 +108,11 @@ export const deleteTask = async (id) => {
     const response = await fetch(`${API_URL}/${id}`, {
       method: 'DELETE',
     });
+    
     if (!response.ok) {
       throw new Error('Erreur lors de la suppression de la tâche');
     }
+    
     return true;
   } catch (error) {
     console.error('Erreur deleteTask:', error);

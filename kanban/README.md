@@ -9,7 +9,7 @@ Application Kanban développée avec React, Bootstrap et json-server.
 - [x] **Étape 3** : Drag & Drop entre colonnes
 - [x] **Étape 4** : Routage avec React Router
 - [x] **Étape 5** : Communication avec json-server
-- [ ] **Étape 6** : Filtrage et recherche
+- [x] **Étape 6** : Filtrage et recherche
 
 ## Routes
 

@@ -5,6 +5,8 @@ export default function Column({
   title, 
   tasks, 
   status, 
+  allTasks,
+  hasActiveFilters,
   onEdit, 
   onDelete, 
   onDragStart, 
@@ -13,6 +15,12 @@ export default function Column({
   isDraggingOver 
 }) {
   const filteredTasks = tasks.filter(task => task.status === status);
+  const totalTasksInColumn = allTasks.filter(task => task.status === status).length;
+  
+  // Ne pas afficher la colonne si elle est vide ET qu'il y a des filtres actifs
+  if (hasActiveFilters && filteredTasks.length === 0) {
+    return null;
+  }
   
   return (
     <div className="col-md-4 col-12 mb-3">
@@ -21,7 +29,13 @@ export default function Column({
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0 fs-6">{title}</h5>
             <span className="badge bg-light text-dark border">
-              {filteredTasks.length}
+              {hasActiveFilters && filteredTasks.length !== totalTasksInColumn ? (
+                <span>
+                  {filteredTasks.length} / {totalTasksInColumn}
+                </span>
+              ) : (
+                filteredTasks.length
+              )}
             </span>
           </div>
         </div>
@@ -36,7 +50,7 @@ export default function Column({
           }}
         >
           {filteredTasks.length === 0 ? (
-            <p className="empty-state small">
+            <p className="empty-state small text-muted text-center py-4">
               {isDraggingOver === status ? 'Déposer ici' : 'Aucune tâche'}
             </p>
           ) : (

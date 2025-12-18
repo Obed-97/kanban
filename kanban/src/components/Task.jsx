@@ -4,12 +4,29 @@ import { useNavigate } from 'react-router-dom';
 export default function Task({ task, onEdit, onDelete, onDragStart }) {
   const navigate = useNavigate();
 
+  
   const handleCardClick = (e) => {
-    // Ne pas naviguer si on clique sur un bouton
+    
     if (e.target.closest('button')) {
       return;
     }
+    
+    console.log('Navigation vers détails de la tâche:', task.id);
     navigate(`/task/${task.id}`);
+  };
+
+  
+  const handleEdit = (e) => {
+    e.stopPropagation(); 
+    console.log('Modification de la tâche:', task.id, task);
+    onEdit(task); 
+  };
+
+ 
+  const handleDelete = (e) => {
+    e.stopPropagation(); 
+    console.log('Suppression de la tâche:', task.id);
+    onDelete(task.id); 
   };
 
   return (
@@ -27,24 +44,18 @@ export default function Task({ task, onEdit, onDelete, onDragStart }) {
           </h6>
           <div className="d-flex gap-1 flex-shrink-0">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(task);
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
+              onClick={handleEdit}
               className="btn btn-task-action btn-task-edit"
               title="Modifier"
+              type="button"
             >
               <i className="bi bi-pencil"></i>
             </button>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(task.id);
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
+              onClick={handleDelete}
               className="btn btn-task-action btn-task-delete"
               title="Supprimer"
+              type="button"
             >
               <i className="bi bi-trash"></i>
             </button>
